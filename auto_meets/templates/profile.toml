@@ -1,0 +1,44 @@
+# All relative paths are relative to this TOML file, not the current directory.
+[storage]
+root = "../data"
+
+[schedule]
+# The external agent reads this source with its calendar/browser tools.
+source = ""
+include = []               # e.g. ["lecture", "математика"]
+exclude = []               # e.g. ["отменено"]
+check_minutes = 5
+
+[report]
+kind = "lecture"          # lecture | meeting
+detail = "detailed"       # brief | detailed
+instructions = "Отделяй задания, сроки и организационные указания от основного материала."
+
+[capture]
+backend = "windows"      # test = synthetic audio/video, for smoke tests only
+gst = "gst-launch-1.0"
+inspect = "gst-inspect-1.0"
+frame_seconds = 5
+change_threshold = 0.025  # mean grayscale difference, 0..1
+duplicate_threshold = 0.01
+microphone = false       # enable only with permission to record your own voice
+microphone_device = ""  # empty = OS default input
+crop = [0, 0, 0, 0]      # x, y, width, height inside the captured window; zero size = all
+max_hours = 6             # hard safety stop; agent should stop earlier when meeting ends
+min_free_mb = 512
+stall_seconds = 30
+
+[asr]
+enabled = true
+executable = "whisper-cli"
+model = ""              # required, e.g. ../tools/whisper/models/ggml-small.bin
+language = "ru"
+chunk_seconds = 120
+threads = 4
+use_gpu = true            # actual CUDA/Vulkan/CPU support comes from whisper.cpp build
+timeout_seconds = 900
+uncertain_probability = 0.5  # heuristic mean token probability, not calibrated confidence
+
+[browser]
+executable = ""          # auto-detect Edge/Chrome on Windows, or specify full path
+directory = "../data/browser" # isolated browser; never use for unrelated websites

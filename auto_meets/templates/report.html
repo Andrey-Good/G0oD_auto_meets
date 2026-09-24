@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>{{ meeting.title }} — G0oD Auto Meets</title>
+<style>
+:root { color-scheme: light dark; font-family: system-ui, sans-serif; line-height: 1.65; }
+body { max-width: 960px; margin: 2rem auto; padding: 0 1.2rem 3rem; }
+h1 { font-size: clamp(1.7rem, 4vw, 2.6rem); line-height: 1.2; margin-bottom: .5rem; }
+h2 { margin-top: 2rem; border-bottom: 1px solid #8886; padding-bottom: .35rem; }
+h3 { margin-bottom: .35rem; } p { white-space: pre-wrap; }
+a { color: inherit; } .meta, .sources { font-size: .86rem; opacity: .75; }
+.notice { padding: .8rem 1rem; border: 1px solid #8888; border-radius: .5rem; }
+.warning { border-left: .3rem solid #b88328; padding-left: .8rem; }
+figure { margin: 1.2rem 0; break-inside: avoid; } img { max-width: 100%; height: auto; border: 1px solid #8885; }
+figcaption { font-size: .85rem; } audio { width: 100%; margin: .7rem 0; }
+article, .item { margin: 1rem 0; } .item p { margin: .3rem 0; }
+summary { cursor: pointer; font-weight: 600; padding: .5rem 0; }
+.transcript p { margin: .8rem 0; } .transcript a { font-variant-numeric: tabular-nums; }
+nav { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1rem 0; }
+@media print { audio, nav { display: none; } body { max-width: none; margin: 0; font-size: 10pt; } }
+</style>
+</head>
+<body>
+<header><div class="meta">G0oD AUTO MEETS · {{ profile.report.kind }} · {{ meeting.created_at }} (UTC)</div>
+<h1>{{ meeting.title }}</h1>
+<div class="meta">Состояние записи: {{ state.get('phase', 'unknown') }}</div>
+</header>
+{% if not summary %}<p class="notice">Черновик материалов. Транскрипция и кадры подготовлены, но агент ещё не написал проверенный пересказ.</p>{% endif %}
+{% if warning %}<p class="warning">{{ warning }}</p>{% endif %}
+{% if state.get('error') %}<p class="warning">Запись или обработка завершилась с проблемой: {{ state.error }}</p>{% endif %}
+{% if state.get('asr_errors', 0) %}<p class="warning">Не распознано фрагментов: {{ state.asr_errors }}. Материал может быть неполным.</p>{% endif %}
+{% if state.get('stop_reason') == 'max_duration' %}<p class="warning">Запись остановлена по ограничению длительности. Встреча могла продолжаться.</p>{% endif %}
+{% if state.get('frame_stale') %}<p class="warning">Во время записи перестали приходить новые кадры. Проверьте полноту визуальных материалов.</p>{% endif %}
+<nav><a href="#main">Материал</a><a href="#tasks">Задания</a><a href="#slides">Кадры</a><a href="#transcript">Транскрипция</a></nav>
+<audio id="audio" controls preload="metadata" src="audio.wav"></audio>
+<div class="meta"><a href="audio.wav">Исходная запись</a> · <a href="transcript.md">Транскрипция Markdown</a> · <a href="transcript.json">JSON</a></div>
+{% macro sources(ids) -%}
+<div class="sources">{% for id in ids %}<a href="#{{ id }}" data-ms="{{ segment_map[id].start_ms }}">{{ segment_map[id].start_ms | time }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</div>
+{%- endmacro %}
+{% macro statements(items) -%}
+{% for item in items %}<div class="item"><p>{{ item.text }}</p>{{ sources(item.sources) }}</div>{% endfor %}
+{%- endmacro %}
+<main id="main">
+{% if summary %}
+<h2>Главное</h2>{{ statements(summary.brief) }}
+{% if profile.report.detail == 'detailed' %}
+{% for section in summary.sections %}<article><h2>{{ section.title }}</h2><p>{{ section.text }}</p>{{ sources(section.sources) }}
+{% for id in section.frames %}<figure><img src="{{ slide_map[id].file }}" alt="Кадр {{ id }}" loading="lazy"><figcaption>{{ slide_map[id].at_ms | time }}</figcaption></figure>{% endfor %}</article>{% endfor %}
+{% endif %}
+{% if summary.decisions %}<h2>Решения и договорённости</h2>{{ statements(summary.decisions) }}{% endif %}
+<section id="tasks"><h2>{{ 'Задания и сроки' if profile.report.kind == 'lecture' else 'Поручения и сроки' }}</h2>
+{% for task in summary.tasks %}<div class="item"><p>{{ task.text }}</p><div class="meta">Ответственный: {{ task.owner or 'не назван' }} · Срок: {{ task.deadline or 'не назван' }}</div>{{ sources(task.sources) }}</div>
+{% else %}<p>В подготовленном материале задания не выделены.</p>{% endfor %}</section>
+{% if summary.organization %}<h2>Организационные указания</h2>{{ statements(summary.organization) }}{% endif %}
+{% if summary.uncertainties %}<h2>Что требует проверки</h2>{{ statements(summary.uncertainties) }}{% endif %}
+{% endif %}
+</main>
+<section id="slides"><h2>Отобранные кадры · {{ slides | length }}</h2>
+<details{% if not summary %} open{% endif %}><summary>Просмотреть все кадры</summary>
+{% for slide in slides %}<figure id="{{ slide.id }}"><img src="{{ slide.file }}" alt="Кадр {{ slide.id }}" loading="lazy"><figcaption>{{ slide.id }} · {% for t in slide.seen_at_ms %}<a href="#audio" data-ms="{{ t }}">{{ t | time }}</a> {% endfor %}</figcaption></figure>{% else %}<p>Кадров нет.</p>{% endfor %}
+</details></section>
+<section id="transcript"><h2>Транскрипция</h2><p class="meta">Метки «Проверить» — эвристика, а не гарантия обнаружения ошибок. Распознавание может ошибаться и без такой метки.</p>
+<details{% if not summary %} open{% endif %}><summary>Показать текст с временными отметками</summary><div class="transcript">
+{% for segment in transcript %}<p id="{{ segment.id }}"{% if segment.uncertain %} class="warning"{% endif %}><a href="#audio" data-ms="{{ segment.start_ms }}">{{ segment.start_ms | time }}</a> {% if segment.uncertain %}<strong>Проверить: </strong>{% endif %}{{ segment.text }}</p>{% else %}<p>Распознанной речи пока нет.</p>{% endfor %}
+</div></details></section>
+<script>
+document.addEventListener('click', function (event) {
+  const link = event.target.closest('[data-ms]');
+  if (!link) return;
+  const audio = document.getElementById('audio');
+  const time = Number(link.dataset.ms) / 1000;
+  if (Number.isFinite(time)) audio.currentTime = time;
+});
+</script>
+</body></html>
