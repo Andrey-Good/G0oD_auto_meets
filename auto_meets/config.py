@@ -1,4 +1,4 @@
-"""Read one TOML profile. Resolve paths once, relative to that profile, not the shell."""
+"""Read recorder TOML settings, resolving paths relative to their file."""
 from pathlib import Path
 import math
 import tomllib

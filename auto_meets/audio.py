@@ -57,7 +57,7 @@ def normalize(raw: dict, index: int, start_ms: int, duration_ms: int, threshold:
         if (type(a) not in (int, float) or type(b) not in (int, float)
                 or not math.isfinite(a) or not math.isfinite(b) or a < 0 or b < a):
             raise ValueError("Invalid whisper timestamp")
-        if not text or a >= duration_ms:
+        if not text or text.casefold() == "[blank_audio]" or a >= duration_ms:
             continue
         probs = [t["p"] for t in entry.get("tokens", [])
                  if not t.get("text", "").startswith("<|")
@@ -72,9 +72,13 @@ def normalize(raw: dict, index: int, start_ms: int, duration_ms: int, threshold:
 
 def transcribe_chunk(folder: Path, settings: dict, index: int, size: int, force=False):
     length = settings["chunk_seconds"] * BYTES_SECOND
-    offset = index * length
-    count = min(length, size - offset)
+    nominal_offset = index * length
+    # Give Whisper context before a boundary; a clipped first word is otherwise lost.
+    overlap = min(BYTES_SECOND, nominal_offset)
+    offset = nominal_offset - overlap
+    count = min(length, size - nominal_offset) + overlap
     start_ms, duration_ms = offset * 1000 // BYTES_SECOND, count * 1000 // BYTES_SECOND
+    nominal_start_ms = nominal_offset * 1000 // BYTES_SECOND
     result_path = folder / "chunks" / f"{index:06d}.json"
     with (folder / "audio.wav").open("rb") as f:
         f.seek(HEADER + offset)
@@ -122,8 +126,9 @@ def transcribe_chunk(folder: Path, settings: dict, index: int, size: int, force=
                         child.wait(timeout=10)
                     write_json(folder / "asr-process.json", None)
             raw = read_json(output)
-            result["segments"] = normalize(raw, index, start_ms, duration_ms,
-                                            settings["uncertain_probability"])
+            result["segments"] = [segment for segment in normalize(
+                raw, index, start_ms, duration_ms, settings["uncertain_probability"])
+                if segment["end_ms"] > nominal_start_ms]
             if not result["segments"]:
                 result["segments"] = [{"id": f"c{index:06d}missing", "start_ms": start_ms,
                                         "end_ms": start_ms + duration_ms, "uncertain": True,

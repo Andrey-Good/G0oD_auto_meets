@@ -1,4 +1,5 @@
 import copy
+import io
 import json
 import os
 from pathlib import Path
@@ -6,7 +7,7 @@ import subprocess
 import sys
 import wave
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import pytest
 
 from auto_meets import audio
@@ -17,6 +18,50 @@ from auto_meets.frames import FrameSelector
 from auto_meets.report import render, validate_summary
 from auto_meets.storage import identity, lock, process, read_json, write_json
 from auto_meets.worker import run
+
+
+def test_cli_json_survives_legacy_windows_console_encoding(monkeypatch):
+    import auto_meets.cli as cli
+
+    output = io.BytesIO()
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(output, encoding="cp1252"))
+    monkeypatch.setattr(cli, "execute", lambda args: {"title": "A\u200b title"})
+    assert main(["windows"]) == 0
+    sys.stdout.flush()
+    assert json.loads(output.getvalue().decode("cp1252"))["title"] == "A\u200b title"
+
+
+def test_browser_waits_for_new_window_when_profile_is_reused(tmp_path, monkeypatch):
+    from auto_meets.platforms import windows as platform
+
+    p = validate({"browser": {"executable": sys.executable,
+                              "directory": str(tmp_path / "browser")}})
+    arg = f"--user-data-dir={tmp_path / 'browser'}"
+    old = {"pid": 123, "window": 1, "title": "Old meeting", "minimized": False}
+    new = {"pid": 123, "window": 2, "title": "New meeting", "minimized": False}
+    calls = 0
+
+    def fake_windows():
+        nonlocal calls
+        calls += 1
+        return [old] if calls <= 2 else [old, new]
+
+    class Browser:
+        pid = 123
+        info = {"cmdline": [sys.executable, arg, "--new-window"]}
+
+        def create_time(self):
+            return 100.0
+
+    monkeypatch.setattr(platform, "user32", lambda: None)
+    monkeypatch.setattr(platform, "windows", fake_windows)
+    monkeypatch.setattr(platform.psutil, "process_iter", lambda attrs: [Browser()])
+    monkeypatch.setattr(platform.subprocess, "Popen", lambda *args, **kwargs: object())
+    monkeypatch.setattr(platform.time, "sleep", lambda seconds: None)
+
+    result = platform.open_browser(p, "https://example.test/meeting")
+    assert result["pid"] == 123
+    assert result["windows"] == [new]
 
 
 @pytest.mark.parametrize("patch", [
@@ -83,6 +128,33 @@ def test_wav_repair_keeps_samples(tmp_path):
         audio.new_audio(path)
 
 
+def test_whisper_blank_audio_marker_is_not_spoken_text():
+    raw = {"transcription": [{"text": "[BLANK_AUDIO]", "offsets": {"from": 0, "to": 1000},
+                              "tokens": [{"text": "[BLANK_AUDIO]", "p": 1.0}]}]}
+    assert audio.normalize(raw, 0, 0, 1000, 0.5) == []
+
+
+def test_atomic_json_write_recovers_from_transient_windows_access_denied(tmp_path, monkeypatch):
+    import auto_meets.storage as storage
+
+    path = tmp_path / "state.json"
+    storage.write_json(path, {"phase": "starting"})
+    original = storage.os.replace
+    calls = 0
+
+    def transient_replace(src, dst):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise PermissionError(5, "The destination is temporarily open")
+        return original(src, dst)
+
+    monkeypatch.setattr(storage.os, "replace", transient_replace)
+    storage.write_json(path, {"phase": "recording"})
+    assert calls == 2
+    assert storage.read_json(path) == {"phase": "recording"}
+
+
 def fake_whisper(monkeypatch, calls, mode="ok"):
     class Child:
         pid = os.getpid()
@@ -94,6 +166,11 @@ def fake_whisper(monkeypatch, calls, mode="ok"):
                 duration = wav.getnframes() * 1000 // wav.getframerate()
             data = {"transcription": [{"text": " Test speech", "offsets": {"from": 0, "to": duration},
                                      "tokens": [{"text": "Test", "p": 0.2}, {"text": "<|end|>", "p": 1}]}]}
+            if mode == "boundary":
+                data["transcription"] = [
+                    {"text": "Before boundary", "offsets": {"from": 0, "to": 500}},
+                    {"text": "Crosses boundary", "offsets": {"from": 500, "to": duration}},
+                ]
             if mode == "malformed":
                 data["transcription"][0]["text"] = None
             output = Path(args[args.index("-of") + 1]).with_suffix(".json")
@@ -122,9 +199,9 @@ def test_asr_timestamps_tail_cache_and_command(session, profile, monkeypatch):
     for index in range(3):
         result = audio.transcribe_chunk(session, settings, index, audio.audio_size(session / "audio.wav"))
         assert result["error"] is None
-        assert result["segments"][0]["start_ms"] == index * 1000
+        assert result["segments"][0]["start_ms"] == max(0, index - 1) * 1000
         assert result["segments"][0]["uncertain"] is True
-    assert result["duration_ms"] == 500
+    assert result["duration_ms"] == 1500
     assert result["segments"][0]["end_ms"] == 2500
     audio.transcribe_chunk(session, settings, 0, 80000)
     assert len(calls) == 3  # Successful cache reused.
@@ -135,6 +212,14 @@ def test_asr_timestamps_tail_cache_and_command(session, profile, monkeypatch):
     assert not list((session / "spool").glob("asr-*"))
     assert (session / "audio.wav").read_bytes() == before
     assert len(audio.collect_transcript(session)) == 3
+
+
+def test_asr_overlap_omits_segments_wholly_before_boundary(session, profile, monkeypatch):
+    fake_whisper(monkeypatch, [], mode="boundary")
+    result = audio.transcribe_chunk(session, profile["asr"], 1,
+                                    audio.audio_size(session / "audio.wav"))
+    assert result["start_ms"] == 0
+    assert [segment["text"] for segment in result["segments"]] == ["Crosses boundary"]
 
 
 @pytest.mark.parametrize("mode", ["invalid", "malformed", "exit", "timeout"])
@@ -171,6 +256,23 @@ def test_repeated_frames_keep_return_times(session, profile):
     assert selector.data["slides"][0]["seen_at_ms"] == [0, 15000]
     assert selector.data["last_index"] == 3
     assert not list((session / "spool").glob("*.png"))
+
+
+def test_added_bullet_is_not_lost_as_unchanged_slide(session, profile):
+    selector = FrameSelector(session, profile["capture"])
+    font = ImageFont.load_default(size=32)
+    for index, extra in enumerate(("", "New requirement", "")):
+        image = Image.new("RGB", (1280, 720), "white")
+        draw = ImageDraw.Draw(image)
+        draw.text((80, 70), "Lecture topic", fill="black", font=font)
+        draw.text((100, 180), "First point", fill="black", font=font)
+        draw.text((100, 260), "Second point", fill="black", font=font)
+        if extra:
+            draw.text((100, 340), extra, fill="black", font=font)
+        image.save(session / "spool" / f"frame-{index:06d}.png")
+        selector.observe(index, index * 5000)
+    assert len(selector.data["slides"]) == 2
+    assert selector.data["slides"][0]["seen_at_ms"] == [0, 10000]
 
 
 def test_locks_and_recycled_pid(tmp_path):
@@ -224,6 +326,39 @@ def test_init_does_not_overwrite(tmp_path, capsys):
     assert main(["init", "--profile", str(profile)]) == 2
     assert profile.read_bytes() == original
     assert (tmp_path / "data" / "agent-state.json").exists()
+
+
+def test_default_init_creates_machine_settings_without_calendar(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert main(["init"]) == 0
+    path = tmp_path / "data" / "recorder.toml"
+    assert path.is_file()
+    contents = path.read_text(encoding="utf-8")
+    assert "[capture]" in contents and "[asr]" in contents
+    assert "[schedule]" not in contents and "[report]" not in contents
+    assert load_profile(path)["storage"]["root"] == str(tmp_path / "data")
+
+
+def test_start_uses_per_recording_report_options(tmp_path, monkeypatch):
+    import auto_meets.cli as cli
+
+    settings = tmp_path / "data" / "recorder.toml"
+    settings.parent.mkdir()
+    settings.write_text("", encoding="utf-8")
+    monkeypatch.setattr(cli.shutil, "which", lambda command: command)
+    seen = {}
+
+    def fake_start(profile, title, target, event_key, wait):
+        seen.update(profile["report"])
+        return {"phase": "recording"}
+
+    monkeypatch.setattr(cli.worker, "start", fake_start)
+    args = cli.parser().parse_args([
+        "start", "--settings", str(settings), "--title", "Team", "--kind", "meeting",
+        "--detail", "brief", "--instructions", "Decisions first", "--consent",
+    ])
+    assert cli.execute(args)["phase"] == "recording"
+    assert seen == {"kind": "meeting", "detail": "brief", "instructions": "Decisions first"}
 
 
 def test_recording_requires_consent(tmp_path):

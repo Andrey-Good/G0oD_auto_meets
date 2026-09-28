@@ -1,25 +1,15 @@
-# All relative paths are relative to this TOML file, not the current directory.
+# Local recorder settings. Relative paths are resolved from this file.
+# Calendar links, schedules, report preferences, and personal notes live in
+# private .agents/skills/local-*/SKILL.md files, not here.
 [storage]
 root = "../data"
-
-[schedule]
-# The external agent reads this source with its calendar/browser tools.
-source = ""
-include = []               # e.g. ["lecture", "математика"]
-exclude = []               # e.g. ["отменено"]
-check_minutes = 5
-
-[report]
-kind = "lecture"          # lecture | meeting
-detail = "detailed"       # brief | detailed
-instructions = "Отделяй задания, сроки и организационные указания от основного материала."
 
 [capture]
 backend = "windows"      # test = synthetic audio/video, for smoke tests only
 gst = "gst-launch-1.0"
 inspect = "gst-inspect-1.0"
 frame_seconds = 5
-change_threshold = 0.025  # mean grayscale difference, 0..1
+change_threshold = 0.025  # largest local grayscale difference, 0..1
 duplicate_threshold = 0.01
 microphone = false       # enable only with permission to record your own voice
 microphone_device = ""  # empty = OS default input
@@ -41,4 +31,4 @@ uncertain_probability = 0.5  # heuristic mean token probability, not calibrated 
 
 [browser]
 executable = ""          # auto-detect Edge/Chrome on Windows, or specify full path
-directory = "../data/browser" # isolated browser; never use for unrelated websites
+directory = "../data/browser" # used by the optional browser command

@@ -120,15 +120,18 @@ def open_browser(profile: dict, url: str) -> dict:
     if not exe or not Path(exe).is_file():
         raise ValueError("Set browser.executable to msedge.exe, chrome.exe or Chromium")
     arg = f"--user-data-dir={directory}"
+    previous_windows = {w["window"] for w in windows()}
     child = subprocess.Popen([exe, arg, "--no-first-run", "--new-window", url],
                              close_fds=True)
     for _ in range(40):
+        current_windows = windows()
         for p in psutil.process_iter(["pid", "cmdline"]):
             try:
                 args = p.info["cmdline"] or []
                 if any(a.casefold() == arg.casefold() for a in args) and not any(
                         a.startswith("--type=") for a in args):
-                    visible = [w for w in windows() if w["pid"] == p.pid]
+                    visible = [w for w in current_windows if w["pid"] == p.pid
+                               and w["window"] not in previous_windows and not w["minimized"]]
                     if visible:
                         return {"pid": p.pid, "created": p.create_time(),
                                 "windows": visible, "browser_directory": str(directory)}
@@ -136,4 +139,4 @@ def open_browser(profile: dict, url: str) -> dict:
                 continue
         time.sleep(0.25)
     child.poll()
-    raise RuntimeError("Browser opened, but no window was discovered; run auto-meets windows")
+    raise RuntimeError("Browser opened, but no new window was discovered; run auto-meets windows")

@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import time
 import uuid
 
 import psutil
@@ -22,7 +23,15 @@ def write_text(path: Path, text: str) -> None:
             f.write(text)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(name, path)
+        for attempt in range(4):
+            try:
+                os.replace(name, path)
+                break
+            except PermissionError:
+                # Windows can briefly hold a destination open while status is read.
+                if attempt == 3:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
     finally:
         Path(name).unlink(missing_ok=True)
 

@@ -14,7 +14,15 @@ def thumbnail(path: Path):
 
 
 def distance(a, b) -> float:
-    return ImageStat.Stat(ImageChops.difference(a, b)).mean[0] / 255
+    difference = ImageChops.difference(a, b)
+    # Whole-frame averages hide a new line of text on an otherwise unchanged slide.
+    # Small tiles preserve those changes without adding OCR or another dependency.
+    tile_width, tile_height = 16, 10
+    return max(
+        ImageStat.Stat(difference.crop((x, y, x + tile_width, y + tile_height))).mean[0]
+        for y in range(0, difference.height, tile_height)
+        for x in range(0, difference.width, tile_width)
+    ) / 255
 
 
 class FrameSelector:

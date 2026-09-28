@@ -68,11 +68,15 @@ def parser():
     sub = p.add_subparsers(dest="command", required=True)
     for name in ("init", "doctor", "browser", "start", "list", "import-wav"):
         cmd = sub.add_parser(name)
-        cmd.add_argument("--profile", type=Path, default=Path("profiles/study.toml"))
+        cmd.add_argument("--settings", "--profile", dest="profile", type=Path,
+                         default=Path("data/recorder.toml"))
         if name == "browser":
             cmd.add_argument("--url", required=True)
         if name in ("start", "import-wav"):
             cmd.add_argument("--title", required=True)
+            cmd.add_argument("--kind", choices=("lecture", "meeting"))
+            cmd.add_argument("--detail", choices=("brief", "detailed"))
+            cmd.add_argument("--instructions", help="Report preferences for this recording")
         if name == "start":
             cmd.add_argument("--pid", type=int, default=0)
             cmd.add_argument("--window", type=lambda s: int(s, 0), default=0)
@@ -90,7 +94,8 @@ def parser():
         if name == "stop":
             cmd.add_argument("--wait", type=float, default=0)
         if name == "process":
-            cmd.add_argument("--profile", type=Path, help="Use this profile's ASR settings only")
+            cmd.add_argument("--settings", "--profile", dest="profile", type=Path,
+                             help="Use this file's ASR settings only")
             cmd.add_argument("--force", action="store_true", help="Ignore successful ASR cache")
     return p
 
@@ -101,15 +106,15 @@ def execute(args):
         path = args.profile.resolve()
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("x", encoding="utf-8") as f:
-            f.write((TEMPLATES / "profile.toml").read_text(encoding="utf-8"))
+            f.write((TEMPLATES / "recorder.toml").read_text(encoding="utf-8"))
         profile = load_profile(path)
         root = Path(profile["storage"]["root"])
         root.mkdir(parents=True, exist_ok=True)
         memory = root / "agent-state.json"
         if not memory.exists():
-            write_json(memory, {"next_event": None, "wakeup_id": None, "active_session": None,
-                                "last_checked_at": None, "notes": []})
-        return {"profile": str(path), "agent_state": str(memory)}
+            write_json(memory, {"calendar_checks": {}, "event_wakeups": {},
+                                "active_session": None})
+        return {"settings": str(path), "profile": str(path), "agent_state": str(memory)}
     if command == "demo":
         return demo(args.output)
     if command == "windows":
@@ -117,6 +122,11 @@ def execute(args):
         return windows()
     if command in ("doctor", "browser", "start", "list", "import-wav"):
         profile = load_profile(args.profile)
+        if command in ("start", "import-wav"):
+            for key, value in (("kind", args.kind), ("detail", args.detail),
+                               ("instructions", args.instructions)):
+                if value is not None:
+                    profile["report"][key] = value
         if command == "doctor":
             return doctor(profile)
         if command == "list":
@@ -166,10 +176,10 @@ def main(argv=None) -> int:
     args = parser().parse_args(argv)
     try:
         result = execute(args)
-        print(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False))
+        print(json.dumps(result, ensure_ascii=True, indent=2, allow_nan=False))
         if isinstance(result, dict) and (result.get("ok") is False or result.get("phase") in ("failed", "needs_retry")):
             return 2
         return 0
     except (OSError, ValueError, RuntimeError, wave.Error, psutil.Error) as e:
-        print(json.dumps({"error": f"{type(e).__name__}: {e}"}, ensure_ascii=False), file=sys.stderr)
+        print(json.dumps({"error": f"{type(e).__name__}: {e}"}, ensure_ascii=True), file=sys.stderr)
         return 2
