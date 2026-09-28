@@ -61,7 +61,8 @@ def doctor(profile: dict) -> dict:
     for name, command in [("gstreamer", [c["gst"], "--version"]),
                           ("gst-inspect", [c["inspect"], "--version"])]:
         try:
-            r = subprocess.run(command, capture_output=True, text=True, timeout=15,
+            # The first GStreamer invocation may build its plugin registry on Windows.
+            r = subprocess.run(command, capture_output=True, text=True, timeout=60,
                                encoding="utf-8", errors="replace")
             version = re.search(r"\b(\d+)\.(\d+)\.(\d+)\b", r.stdout)
             ok = r.returncode == 0 and version is not None and tuple(
