@@ -16,7 +16,7 @@ from auto_meets.cli import demo, main
 from auto_meets.config import load_profile, validate
 from auto_meets.frames import FrameSelector
 from auto_meets.report import render, validate_summary
-from auto_meets.storage import identity, lock, process, read_json, write_json
+from auto_meets.storage import identity, lock, new_session, process, read_json, write_json
 from auto_meets.worker import run
 
 
@@ -85,7 +85,29 @@ def test_profile_paths_do_not_depend_on_cwd(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path.parent)
     p = load_profile(path)
     assert p["asr"]["model"] == str(tmp_path / "models" / "test.bin")
-    assert p["storage"]["root"] == str(tmp_path / "data")
+    assert p["storage"]["root"] == str(tmp_path / "data" / "sessions")
+
+
+def test_session_folder_has_readable_stable_shape(tmp_path):
+    profile = validate({"storage": {"root": str(tmp_path / "data" / "sessions")}})
+    folder = new_session(profile, "Лекция: анализ / 2026")
+    assert folder.parent == tmp_path / "data" / "sessions"
+    assert folder.name.startswith("20")
+    assert "лекция-анализ-2026" in folder.name
+    assert (folder / "session.json").is_file()
+
+
+def test_repository_settings_keep_created_files_inside_gitignored_data(tmp_path):
+    (tmp_path / ".git").mkdir()
+    data = tmp_path / "data"
+    data.mkdir()
+    settings = data / "recorder.toml"
+    settings.write_text('[storage]\nroot="../../elsewhere"\n', encoding="utf-8")
+    with pytest.raises(ValueError, match="storage.root"):
+        load_profile(settings)
+    settings.write_text('[storage]\nroot="../data/sessions"\n[browser]\ndirectory="../../elsewhere"\n', encoding="utf-8")
+    with pytest.raises(ValueError, match="browser.directory"):
+        load_profile(settings)
 
 
 def test_gst_quote_and_windows_sources(profile, tmp_path):
@@ -325,7 +347,7 @@ def test_init_does_not_overwrite(tmp_path, capsys):
     original = profile.read_bytes()
     assert main(["init", "--profile", str(profile)]) == 2
     assert profile.read_bytes() == original
-    assert (tmp_path / "data" / "agent-state.json").exists()
+    assert (tmp_path / "data" / "runtime" / "agent-state.json").exists()
 
 
 def test_default_init_creates_machine_settings_without_calendar(tmp_path, monkeypatch):
@@ -336,7 +358,7 @@ def test_default_init_creates_machine_settings_without_calendar(tmp_path, monkey
     contents = path.read_text(encoding="utf-8")
     assert "[capture]" in contents and "[asr]" in contents
     assert "[schedule]" not in contents and "[report]" not in contents
-    assert load_profile(path)["storage"]["root"] == str(tmp_path / "data")
+    assert load_profile(path)["storage"]["root"] == str(tmp_path / "data" / "sessions")
 
 
 def test_start_uses_per_recording_report_options(tmp_path, monkeypatch):

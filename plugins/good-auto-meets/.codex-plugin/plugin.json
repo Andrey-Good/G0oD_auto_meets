@@ -1,0 +1,23 @@
+{
+  "name": "good-auto-meets",
+  "version": "0.1.0",
+  "description": "Agent-operated local capture and reports for scheduled online lectures and meetings.",
+  "author": {
+    "name": "Andrey-Good",
+    "url": "https://github.com/Andrey-Good"
+  },
+  "homepage": "https://github.com/Andrey-Good/G0oD_auto_meets",
+  "repository": "https://github.com/Andrey-Good/G0oD_auto_meets",
+  "license": "MIT",
+  "keywords": ["meetings", "lectures", "recording", "transcription"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Good Auto Meets",
+    "shortDescription": "Record lectures and meetings locally with an agent.",
+    "longDescription": "An agent reads your calendar, joins authorized meetings, records audio and selected frames, transcribes locally, and prepares a sourced HTML report. Windows capture requires first-run setup and a live test.",
+    "developerName": "Andrey-Good",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Set up Good Auto Meets. Here is my schedule: <link>."
+  }
+}

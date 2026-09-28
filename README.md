@@ -2,17 +2,24 @@
 
 An agent-run assistant for online lectures and work meetings. It joins scheduled sessions, records audio and useful screen frames locally, and prepares a brief summary or a detailed report with slides.
 
-**You use this repository through an AI agent, not a graphical interface.** Add the repository as a project in an agent environment, then send the agent a message like this:
+**You use this through an AI agent, not a graphical interface.** Install the Codex plugin from this repository's marketplace:
+
+```powershell
+codex plugin marketplace add Andrey-Good/G0oD_auto_meets
+codex plugin add good-auto-meets@good-auto-meets
+```
+
+The first command registers this GitHub marketplace; subsequent plugin installs need only the second command. The plugin is not yet listed in the public Plugins Directory. In Codex, start a new chat and say:
 
 > Set up this repository for me. Here is my schedule: `<schedule link or file>`. Additional details: `<anything important, optional>`.
 
-The agent should ask for essential preferences, prepare the local tools, schedule meeting wakeups, and offer a permission-based test of joining a meeting, recording it, and transcribing a short sample. You do not need to run the recorder's commands yourself.
+The agent should ask for essential preferences, prepare local tools, schedule meeting wakeups, and offer a test of joining, recording, and transcribing a short sample with your permission. You do not need to run recorder commands yourself.
 
 ## How it works
 
 - **The agent is the main operator.** It reads the calendar, follows meeting links, handles the conference interface, starts and monitors recordings, and writes the report.
-- **[AGENTS.md](AGENTS.md) and the [skills](.agents/skills/) instruct the agent.** Shared skills cover setup, schedule updates, capture, and reporting. Calendar-specific links, preferences, and tested workarounds live in private skills excluded from Git.
-- **The Python code gives the agent recording tools.** It captures audio and selected frames, runs local whisper.cpp transcription, stores the session, and renders HTML. Calendar access and wakeups come from the agent environment, not from a scheduler inside this package.
+- **The [plugin skill](plugins/good-auto-meets/skills/good-auto-meets/SKILL.md) instructs the installed agent.** It routes setup, schedule updates, capture, and reporting. [AGENTS.md](AGENTS.md) and the [repository skills](.agents/skills/) serve people working directly in this source repository. Calendar-specific links, preferences, and tested workarounds live in private user skills.
+- **The bundled Python code gives the agent recording tools.** It captures audio and selected frames, runs local whisper.cpp transcription, stores the session, and renders HTML. Calendar access and wakeups come from the agent environment, not from a scheduler inside this package.
 
 ## What is available
 
@@ -26,13 +33,13 @@ The agent should ask for essential preferences, prepare the local tools, schedul
 
 **Browser Use is required** to inspect calendars and meeting pages and to verify that the right conference is open. Computer Use is needed when the agent must inspect or resolve unexpected desktop, window, or audio problems. The agent should request permission before a first connection or test recording when permission has not already been given.
 
-The agent can use `auto-meets init` and `doctor` for setup; `browser` and `windows` to identify the meeting window; `start`, `status`, and `stop` for capture; and `process` and `render` for the finished report. It also has `list`, `import-wav`, and `demo`. See [usage](docs/USAGE.md) and [Windows acceptance checks](docs/TESTING.md) for command details.
+On first use, the plugin's [runner](plugins/good-auto-meets/scripts/auto_meets.py) uses this repository if it is the current project, or clones it into `~/Documents/G0oD_auto_meets`. It creates a private Python environment and recorder settings there, outside the plugin cache. The agent can then use `init`, `doctor`, `browser`, `windows`, `start`, `status`, `stop`, `process`, `render`, `list`, `import-wav`, and `demo` through that runner. It also installs or locates the required GStreamer, whisper.cpp, and ASR model during setup. See [usage](docs/USAGE.md) and [Windows acceptance checks](docs/TESTING.md) for command details.
 
-Recordings and reports are stored locally under `data/<session-id>/`; open that session's `report.html` to read the result. `data/recorder.toml` holds this computer's technical settings. Private calendar skills are stored in `.agents/skills/local-*/`. Both locations are excluded from Git.
+All meeting files stay inside the repository under `data/sessions/<UTC-date-time>_<title>_<id>/`: audio, selected frames, transcript, logs, and `report.html`. Settings are in `data/recorder.toml`; scheduling state and locks are in `data/runtime/`; the optional browser profile is in `data/browser/`. The entire `data/` tree is Git-ignored. Open a session's `report.html` for the result. Private calendar skills live in `~/.agents/skills/local-auto-meets-*/`, outside the plugin cache and Git. Use `AUTO_MEETS_HOME` to point the runner at another checkout of this repository.
 
 ## Requirements and limits
 
-The first real capture backend requires **Windows 11, Python 3.11+, and GStreamer 1.24+**. Linux and macOS can run the demo, import WAV files, transcribe, and render HTML, but do not yet have window/audio capture adapters. whisper.cpp runs locally; available CPU, CUDA, or Vulkan acceleration depends on the machine and installation.
+The first real capture backend requires **Windows 11, Python 3.11+, and GStreamer 1.24+**. Plugin installation alone does not install GStreamer, whisper.cpp, or a speech model: the agent must install or locate them during first setup, configure their paths, run diagnostics, and offer a short real capture test. Linux and macOS can run the demo, import WAV files, transcribe, and render HTML, but do not yet have window/audio capture adapters. whisper.cpp runs locally; available CPU, CUDA, or Vulkan acceleration depends on the machine and installation.
 
 Audio capture covers the browser's **whole process tree**, not a single tab. Other audible tabs in that browser can enter the recording. The window may be covered by another window, but minimized, locked-screen, remote-desktop, and protected-video capture are not established as reliable. One recording runs at a time per storage root.
 

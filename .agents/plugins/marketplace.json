@@ -1,0 +1,20 @@
+{
+  "name": "good-auto-meets",
+  "interface": {
+    "displayName": "Good Auto Meets"
+  },
+  "plugins": [
+    {
+      "name": "good-auto-meets",
+      "source": {
+        "source": "local",
+        "path": "./plugins/good-auto-meets"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
