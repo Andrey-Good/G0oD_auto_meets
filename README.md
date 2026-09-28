@@ -11,6 +11,8 @@ codex plugin add good-auto-meets@good-auto-meets
 
 The first command registers this GitHub marketplace; subsequent plugin installs need only the second command. The plugin is not yet listed in the public Plugins Directory. In any Codex project, start a new chat and invoke the installed skill:
 
+If PowerShell says `plugin add` is unknown, update an older npm-installed Codex CLI with `npm install -g @openai/codex@latest`, then retry. Alternatively, install the plugin from this marketplace in the Codex desktop app's Plugins directory. Start a new chat after installation so the skill becomes available.
+
 > $good-auto-meets Set up my lecture and meeting assistant. Here is my schedule: `<schedule link or file>`. Additional details: `<anything important, optional>`.
 
 The agent should ask for essential preferences, prepare local tools, schedule meeting wakeups, and offer a test of joining, recording, and transcribing a short sample with your permission. You do not need to run recorder commands yourself.
