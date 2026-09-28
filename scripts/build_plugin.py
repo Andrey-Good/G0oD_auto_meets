@@ -13,19 +13,23 @@ PLUGIN = ROOT / "plugins" / "good-auto-meets"
 SKILLS = ("setup", "schedule", "capture", "report")
 
 
+def contents(path: Path) -> bytes:
+    return path.read_bytes().replace(b"\r\n", b"\n")
+
+
 def sources() -> dict[Path, bytes]:
     result = {
-        Path("pyproject.toml"): (ROOT / "pyproject.toml").read_bytes(),
-        Path("LICENSE"): (ROOT / "LICENSE").read_bytes(),
+        Path("pyproject.toml"): contents(ROOT / "pyproject.toml"),
+        Path("LICENSE"): contents(ROOT / "LICENSE"),
     }
     for source in (ROOT / "auto_meets").rglob("*"):
         if source.is_file() and source.suffix in {".py", ".html", ".toml"}:
-            result[source.relative_to(ROOT)] = source.read_bytes()
+            result[source.relative_to(ROOT)] = contents(source)
     for name in ("USAGE.md", "TESTING.md"):
-        result[Path("docs") / name] = (ROOT / "docs" / name).read_bytes()
+        result[Path("docs") / name] = contents(ROOT / "docs" / name)
     for name in SKILLS:
         source = ROOT / ".agents" / "skills" / f"auto-meets-{name}" / "SKILL.md"
-        result[Path("skills/good-auto-meets/references") / f"{name}.md"] = source.read_bytes()
+        result[Path("skills/good-auto-meets/references") / f"{name}.md"] = contents(source)
     return result
 
 
@@ -46,7 +50,7 @@ def main() -> int:
     stale = []
     for relative, contents in files.items():
         target = PLUGIN / relative
-        if not target.is_file() or target.read_bytes() != contents:
+        if not target.is_file() or target.read_bytes().replace(b"\r\n", b"\n") != contents:
             stale.append(str(relative))
             if not args.check:
                 target.parent.mkdir(parents=True, exist_ok=True)
