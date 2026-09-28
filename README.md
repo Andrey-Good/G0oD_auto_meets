@@ -1,76 +1,41 @@
 # G0oD Auto Meets
 
-Локальный помощник для онлайн-лекций и рабочих встреч. Агент подключается к встрече, запускает запись и после её завершения готовит материал для чтения: от кратких тезисов до подробного пересказа со слайдами.
+An agent-run assistant for online lectures and work meetings. It joins scheduled sessions, records audio and useful screen frames locally, and prepares a brief summary or a detailed report with slides.
 
-**Реализован локальный конвейер и инструкции для агента.** Перед первой настоящей встречей нужна настройка и приёмочная проверка на компьютере пользователя. Windows-захват, конкретная площадка и ускорение распознавания не считаются проверенными только потому, что прошли модульные тесты.
+**You use this repository through an AI agent, not a graphical interface.** Add the repository as a project in an agent environment, then send the agent a message like this:
 
-## Кто что делает
+> Set up this repository for me. Here is my schedule: `<schedule link or file>`. Additional details: `<anything important, optional>`.
 
-**Агент** читает расписание своими инструментами, ставит одноразовые пробуждения для встреч, открывает их в управляемом локальном браузере и пишет пересказ. [AGENTS.md](AGENTS.md) направляет его к общим навыкам добавления календаря, обновления расписания, записи и отчёта. Личные календари агент хранит в отдельных навыках, которые не публикуются.
+The agent should ask for essential preferences, prepare the local tools, schedule meeting wakeups, and offer a permission-based test of joining a meeting, recording it, and transcribing a short sample. You do not need to run the recorder's commands yourself.
 
-**Код** записывает звук и кадры независимо от очередного ответа агента, запускает локальный whisper.cpp, сохраняет материалы и собирает HTML. Здесь нет второго агента, собственного планировщика, API-сервера, облачного распознавания и обязательных ключей к LLM.
+## How it works
 
-## Что уже есть
+- **The agent is the main operator.** It reads the calendar, follows meeting links, handles the conference interface, starts and monitors recordings, and writes the report.
+- **[AGENTS.md](AGENTS.md) and the [skills](.agents/skills/) instruct the agent.** Shared skills cover setup, schedule updates, capture, and reporting. Calendar-specific links, preferences, and tested workarounds live in private skills excluded from Git.
+- **The Python code gives the agent recording tools.** It captures audio and selected frames, runs local whisper.cpp transcription, stores the session, and renders HTML. Calendar access and wakeups come from the agent environment, not from a scheduler inside this package.
 
-- Фоновая запись звука дерева процессов браузера и изображения выбранного окна на Windows 11. При необходимости — добавление микрофона и обрезка области кадра.
-- Распознавание блоками без остановки записи; повторная обработка с сохранением исходного аудио и восстановление WAV после прерывания.
-- Отбор изменившихся кадров, объединение повторов и сохранение времени повторных появлений. Фиксированного лимита количества слайдов нет.
-- HTML с аудио, временными отметками, кадрами, пересказом, решениями, поручениями и отдельными организационными указаниями. До работы агента отчёт явно помечен как черновик.
-- Один локальный TOML с настройками рекордера, JSON-команды для агента, защита от повторного запуска события, диагностика зависимостей и синтетическая демонстрация.
+## What is available
 
-## Быстро посмотреть результат
+- Background capture of a browser process tree's audio and a selected window on Windows 11, with optional microphone input and frame cropping.
+- Chunked transcription during recording, later reprocessing, and recovery of interrupted WAV files without discarding the source audio.
+- Selection of changed frames, merging of repeated slides, and timestamps for their later appearances. There is no fixed slide count.
+- A **template for an HTML report** with audio, timestamps, frames, summary, decisions, tasks, and organizational notes. Until the agent writes the content, the report is marked as a draft.
+- One local recorder settings file, diagnostics, event deduplication, and a synthetic demo.
 
-Нужен Python 3.11 или новее. В каталоге репозитория:
+## Working with the agent
 
-```powershell
-py -3 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-.\.venv\Scripts\python.exe -m auto_meets demo
-```
+**Browser Use is required** to inspect calendars and meeting pages and to verify that the right conference is open. Computer Use is needed when the agent must inspect or resolve unexpected desktop, window, or audio problems. The agent should request permission before a first connection or test recording when permission has not already been given.
 
-Команда выведет путь к `report.html`. Открой его в браузере. Это **синтетический пример**, а не проверка записи или качества распознавания. На Linux/macOS вместо `.venv\Scripts\python.exe` используй `.venv/bin/python`.
+The agent can use `auto-meets init` and `doctor` for setup; `browser` and `windows` to identify the meeting window; `start`, `status`, and `stop` for capture; and `process` and `render` for the finished report. It also has `list`, `import-wav`, and `demo`. See [usage](docs/USAGE.md) and [Windows acceptance checks](docs/TESTING.md) for command details.
 
-## Подготовить настоящие встречи
+Recordings and reports are stored locally under `data/<session-id>/`; open that session's `report.html` to read the result. `data/recorder.toml` holds this computer's technical settings. Private calendar skills are stored in `.agents/skills/local-*/`. Both locations are excluded from Git.
 
-```powershell
-.\.venv\Scripts\python.exe -m auto_meets init
-```
+## Requirements and limits
 
-Агент настраивает GStreamer, whisper.cpp и модель в `data/recorder.toml`, выполняет `doctor` и проходит [приёмочную проверку](docs/TESTING.md). Пользователь даёт ссылку на календарь; агент сам уточняет необходимые предпочтения, создаёт личный навык календаря и назначает пробуждения. Уже при первом получении календаря он предлагает с разрешения пользователя проверить вход в ближайшую встречу и короткую запись до получения звука, кадров и распознанного текста. Команды, Windows-настройка и формат пересказа: [docs/USAGE.md](docs/USAGE.md).
+The first real capture backend requires **Windows 11, Python 3.11+, and GStreamer 1.24+**. Linux and macOS can run the demo, import WAV files, transcribe, and render HTML, but do not yet have window/audio capture adapters. whisper.cpp runs locally; available CPU, CUDA, or Vulkan acceleration depends on the machine and installation.
 
-Общие навыки в `.agents/skills/` публикуются в репозитории. Личные навыки `.agents/skills/local-*/` содержат ссылки на календари, предпочтения и проверенные обходы и исключены из Git. Код сам календарь не читает: пробуждения и локальный доступ к браузеру обеспечивает агентная среда.
+Audio capture covers the browser's **whole process tree**, not a single tab. Other audible tabs in that browser can enter the recording. The window may be covered by another window, but minimized, locked-screen, remote-desktop, and protected-video capture are not established as reliable. One recording runs at a time per storage root.
 
-## Структура
+The computer must be on and the agent application running before a lecture so its wakeup can occur. Agent behavior is not deterministic: meeting interfaces, audio routing, recognition, and summaries can fail, so test the whole path before relying on it. Agent models differ in quality; choose one that suits your needs. Chunk boundaries, names, numbers, deadlines, and small slide changes deserve review. There is no speaker diarization or OCR, and the Python package does not write the summary itself.
 
-```text
-AGENTS.md                роль, границы и выбор рабочего навыка
-.agents/skills/          общие процедуры; local-*/ — личные, игнорируются Git
-ARCHITECTURE.md          устройство проекта и правила расширения
-auto_meets/              весь исполняемый код
-  cli.py                 публичные команды
-  worker.py              жизнь фоновой записи
-  capture.py             GStreamer и диагностика
-  audio.py               WAV и whisper.cpp
-  frames.py              сравнение и отбор кадров
-  report.py              проверка пересказа и HTML
-  config.py, storage.py  настройки рекордера, файлы и блокировки
-  platforms/             граница платформы: Windows и тестовый источник
-  templates/             готовые HTML- и TOML-шаблоны
-data/                    настройки устройства, записи и состояние; исключены из Git
-tests/                   автоматические проверки
-docs/                    запуск и приёмка
-```
-
-## Ограничения, которые важно знать
-
-Первая реализация захвата — **Windows 11 + GStreamer 1.24+**. Linux/macOS уже могут запускать демонстрацию, импорт подходящего WAV, локальное распознавание и HTML; захват их окон и звука пока требует отдельного адаптера.
-
-Захватывается **всё дерево процессов браузера**, не одна вкладка. Если агент использует уже открытый браузер пользователя, другие его вкладки со звуком могут попасть в запись; перед встречей нужна проверка WAV. Окно можно перекрывать другими окнами, но нельзя считать проверенными сворачивание, блокировку экрана, удалённый рабочий стол и защищённое видео. Не переключайся на захват всего системного звука как на «незаметный» запасной вариант.
-
-Процесс просит Windows не усыплять компьютер, но не отменяет блокировку, корпоративные политики или выключение. Среда агента должна позволять локальным дочерним процессам жить между пробуждениями. В пределах одного `storage.root` одновременно работает одна запись; распознавание предыдущей встречи может завершаться отдельно.
-
-Речь распознаётся отдельными блоками. На границах блоков возможны ошибки; исходное аудио остаётся для проверки и повторной обработки. Отметка неуверенности — эвристика по вероятностям токенов, не детектор всех ошибок. Имена, числа, сроки и маленькие изменения текста на слайдах требуют внимания. Диаризации говорящих, OCR и автоматического пересказа внутри Python нет: содержательную работу делает агент.
-
-Записывай только встречи, для которых получено необходимое разрешение. Распознавание локальное; при чтении материалов облачным агентом текст и изображения могут уйти его провайдеру. Код сам их никуда не отправляет. `data/`, личные навыки, браузерные cookies и модели нельзя коммитить.
-
-Технические решения и первичные источники: [ARCHITECTURE.md](ARCHITECTURE.md).
+Only record meetings for which you have the necessary permission. Transcription runs locally, but text and images read by a cloud-hosted agent may reach its provider. Do not commit recordings, cookies, models, tokens, or private calendar skills. See [ARCHITECTURE.md](ARCHITECTURE.md) for design details and sources.
