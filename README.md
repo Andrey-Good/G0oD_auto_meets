@@ -34,7 +34,7 @@ The agent should ask for essential preferences, prepare local tools, schedule me
 
 ## Working with the agent
 
-Chat capture is optional. Its [browser extension](browser-extension/) must be loaded once in Chrome or Edge; the agent then runs `chat-start` with the meeting URL and a message selector. The extension activates in the matching tab automatically. It asks for access to websites so it can work across meeting platforms, but sends chat text only to the local collector while a session is active. See [usage](docs/USAGE.md).
+Chat capture is optional. If you choose it, the agent asks whether you want it to load the [browser extension](browser-extension/) through Computer Use (where permitted) or prefer to do that yourself. It must be loaded once in Chrome or Edge; the agent then runs `chat-start` with the meeting URL and a message selector. The extension activates in the matching tab automatically. It asks for access to websites so it can work across meeting platforms, but sends chat text only to the local collector while a session is active. See [usage](docs/USAGE.md).
 
 After an extension update, reload it in each browser's extensions page so the browser runs the new version. `chat-status` reports a version mismatch; audio and frame capture continue if chat is unavailable.
 
