@@ -26,6 +26,7 @@ Read only the reference needed for the current stage:
 - New calendar or first setup: [setup](references/setup.md). Proactively ask for essential preferences, offer a permissioned end-to-end connection, recording, and transcription test, then schedule every eligible occurrence.
 - Periodic calendar refresh or changed event: [schedule](references/schedule.md). Reconcile one-time wakeups against current events.
 - Joining or recording a meeting: [capture](references/capture.md). Browser Use is required; use Computer Use when available to inspect the actual desktop window and sound routing. Keep the conference camera and microphone off.
+- Optional chat capture: if the user wants chat included, follow [capture](references/capture.md) and the `chat-start` instructions in `docs/USAGE.md`. The small browser extension is bundled at `<plugin-root>/browser-extension/`; it must be loaded once into the browser used for meetings. Continue audio and frame capture if chat setup fails.
 - Completed recording: [report](references/report.md). Check audio and transcription before claiming success; produce a sourced summary and HTML report.
 
 The references originated in repository mode. Interpret their `.agents/skills/local-*/` location as the private user-skill directory above when installed as a plugin. Their relative paths and `auto-meets` examples follow the installed-plugin path rules above. Do not run `auto-meets init` against a plugin-cache directory.

@@ -25,6 +25,9 @@ def sources() -> dict[Path, bytes]:
     for source in (ROOT / "auto_meets").rglob("*"):
         if source.is_file() and source.suffix in {".py", ".html", ".toml"}:
             result[source.relative_to(ROOT)] = contents(source)
+    for source in (ROOT / "browser-extension").glob("*"):
+        if source.is_file() and source.suffix in {".json", ".js"}:
+            result[source.relative_to(ROOT)] = contents(source)
     for name in ("USAGE.md", "TESTING.md"):
         result[Path("docs") / name] = contents(ROOT / "docs" / name)
     for name in SKILLS:

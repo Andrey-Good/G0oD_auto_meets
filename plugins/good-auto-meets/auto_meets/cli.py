@@ -11,6 +11,7 @@ from PIL import Image, ImageDraw
 import psutil
 
 from .audio import collect_transcript, new_audio, repair_audio
+from . import chat
 from .capture import doctor
 from .config import DEFAULTS, load_profile
 from .frames import FrameSelector
@@ -97,6 +98,16 @@ def parser():
             cmd.add_argument("--settings", "--profile", dest="profile", type=Path,
                              help="Use this file's ASR settings only")
             cmd.add_argument("--force", action="store_true", help="Ignore successful ASR cache")
+    cmd = sub.add_parser("chat-start")
+    cmd.add_argument("--session", type=Path, required=True)
+    cmd.add_argument("--url", required=True, help="Current meeting page URL")
+    cmd.add_argument("--selector", required=True, help="CSS selector for one chat message element")
+    cmd.add_argument("--wait", type=float, default=5)
+    for name in ("chat-status", "chat-stop", "_chat-server"):
+        cmd = sub.add_parser(name, help=argparse.SUPPRESS if name == "_chat-server" else None)
+        cmd.add_argument("--session", type=Path, required=True)
+        if name == "chat-stop":
+            cmd.add_argument("--wait", type=float, default=5)
     return p
 
 
@@ -155,6 +166,15 @@ def execute(args):
         return worker.run(folder, capture=False)
     folder = args.session.resolve()
     metadata(folder)
+    if command == "chat-start":
+        return chat.start(folder, args.selector, args.url, args.wait)
+    if command == "chat-status":
+        return chat.status(folder)
+    if command == "chat-stop":
+        return chat.stop(folder, args.wait)
+    if command == "_chat-server":
+        chat.serve(folder)
+        return chat.status(folder)
     if command == "status":
         return status(folder)
     if command == "stop":

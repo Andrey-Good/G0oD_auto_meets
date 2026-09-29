@@ -34,11 +34,11 @@ nav { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1rem 0; }
 {% if state.get('asr_errors', 0) %}<p class="warning">Не распознано фрагментов: {{ state.asr_errors }}. Материал может быть неполным.</p>{% endif %}
 {% if state.get('stop_reason') == 'max_duration' %}<p class="warning">Запись остановлена по ограничению длительности. Встреча могла продолжаться.</p>{% endif %}
 {% if state.get('frame_stale') %}<p class="warning">Во время записи перестали приходить новые кадры. Проверьте полноту визуальных материалов.</p>{% endif %}
-<nav><a href="#main">Материал</a><a href="#tasks">Задания</a><a href="#slides">Кадры</a><a href="#transcript">Транскрипция</a></nav>
+<nav><a href="#main">Материал</a><a href="#tasks">Задания</a><a href="#slides">Кадры</a><a href="#transcript">Транскрипция</a>{% if chat %}<a href="#chat">Чат</a>{% endif %}</nav>
 <audio id="audio" controls preload="metadata" src="audio.wav"></audio>
 <div class="meta"><a href="audio.wav">Исходная запись</a> · <a href="transcript.md">Транскрипция Markdown</a> · <a href="transcript.json">JSON</a></div>
 {% macro sources(ids) -%}
-<div class="sources">{% for id in ids %}<a href="#{{ id }}" data-ms="{{ segment_map[id].start_ms }}">{{ segment_map[id].start_ms | time }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</div>
+<div class="sources">{% for id in ids %}{% if id in segment_map %}<a href="#{{ id }}" data-ms="{{ segment_map[id].start_ms }}">{{ segment_map[id].start_ms | time }}</a>{% else %}<a href="#{{ id }}">Чат {{ id }}</a>{% endif %}{% if not loop.last %} · {% endif %}{% endfor %}</div>
 {%- endmacro %}
 {% macro statements(items) -%}
 {% for item in items %}<div class="item"><p>{{ item.text }}</p>{{ sources(item.sources) }}</div>{% endfor %}
@@ -66,6 +66,9 @@ nav { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1rem 0; }
 <details{% if not summary %} open{% endif %}><summary>Показать текст с временными отметками</summary><div class="transcript">
 {% for segment in transcript %}<p id="{{ segment.id }}"{% if segment.uncertain %} class="warning"{% endif %}><a href="#audio" data-ms="{{ segment.start_ms }}">{{ segment.start_ms | time }}</a> {% if segment.uncertain %}<strong>Проверить: </strong>{% endif %}{{ segment.text }}</p>{% else %}<p>Распознанной речи пока нет.</p>{% endfor %}
 </div></details></section>
+{% if chat %}<section id="chat"><h2>Чат · {{ chat | length }}</h2><details><summary>Показать сохранённые сообщения</summary>
+{% for item in chat %}<p id="{{ item.id }}"><span class="meta">{{ item.observed_at }} · {{ item.id }}</span><br>{{ item.text }}</p>{% endfor %}
+</details></section>{% endif %}
 <script>
 document.addEventListener('click', function (event) {
   const link = event.target.closest('[data-ms]');

@@ -28,10 +28,15 @@ The agent should ask for essential preferences, prepare local tools, schedule me
 - Background capture of a browser process tree's audio and a selected window on Windows 11, with optional microphone input and frame cropping.
 - Chunked transcription during recording, later reprocessing, and recovery of interrupted WAV files without discarding the source audio.
 - Selection of changed frames, merging of repeated slides, and timestamps for their later appearances. There is no fixed slide count.
+- Optional continuous capture of meeting chat into the same session, using a small local browser extension. Chat messages can be cited in the HTML report.
 - A **template for an HTML report** with audio, timestamps, frames, summary, decisions, tasks, and organizational notes. Until the agent writes the content, the report is marked as a draft.
 - One local recorder settings file, diagnostics, event deduplication, and a synthetic demo.
 
 ## Working with the agent
+
+Chat capture is optional. Its [browser extension](browser-extension/) must be loaded once in Chrome or Edge; the agent then runs `chat-start` with the meeting URL and a message selector. The extension activates in the matching tab automatically. It asks for access to websites so it can work across meeting platforms, but sends chat text only to the local collector while a session is active. See [usage](docs/USAGE.md).
+
+After an extension update, reload it in each browser's extensions page so the browser runs the new version. `chat-status` reports a version mismatch; audio and frame capture continue if chat is unavailable.
 
 **Browser Use is required** to inspect calendars and meeting pages and to verify that the right conference is open. Computer Use is needed when the agent must inspect or resolve unexpected desktop, window, or audio problems. The agent should request permission before a first connection or test recording when permission has not already been given.
 
