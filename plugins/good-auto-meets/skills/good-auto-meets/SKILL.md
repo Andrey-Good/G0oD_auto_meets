@@ -1,6 +1,6 @@
 ---
 name: good-auto-meets
-description: "Operate local online lecture and work-meeting capture from a calendar: first setup, one-time wakeups, joining, recording, transcription, and reports. Use when a user provides a schedule or asks to manage a meeting recording."
+description: "Operate or verify the Good Auto Meets plugin: calendar setup, meeting capture, transcription, reports, and optional browser chat extension. Use for schedules, recordings, or checks after a plugin update."
 ---
 
 # Good Auto Meets
@@ -12,6 +12,8 @@ You are the operator of the user's online lectures and meetings. The bundled Pyt
 Resolve the plugin root from this file: it is two directories above `SKILL.md`. Do not assume the user's working directory is the plugin or a repository. On Windows run `py -3 "<plugin-root>/scripts/auto_meets.py" paths` to get the runner and workspace paths. If `py` is unavailable, use a Python 3.11+ executable. Run `setup` through the same script on first use; it uses the current repository checkout or clones one into `~/Documents/G0oD_auto_meets`, then creates a Python environment and recorder settings there and returns `doctor` results. A false `ready` means dependencies or hardware still need work. The script never stores user data in the plugin cache. `AUTO_MEETS_HOME` can select another checkout of this repository.
 
 Every recorder command in the references means `py -3 "<plugin-root>/scripts/auto_meets.py" <command> ...`. The runner supplies the user's settings path for commands that need it. Relative `docs/...` references mean `<plugin-root>/docs/...`; `data/recorder.toml` means the `settings` path reported by `paths`; session folders are under `sessions` and `agent-state.json` under `runtime`. All recording and report artifacts must stay in this checkout's Git-ignored `data/` tree. Read the applicable bundled documentation before using unfamiliar options.
+
+For an update check, start at this `SKILL.md` and its plugin root; read the installed manifest and relevant bundled files. Do not guess the cache path or infer that chat is unavailable because `chat-start` is not a separate agent tool: it is a recorder command through the runner. If asked only to confirm an update and explain its changes, compare the installed files with the requested version and stop there. For a functional check of the browser extension, follow the chat verification guidance in [capture](references/capture.md).
 
 ## Personal calendar memory
 
