@@ -1,0 +1,13 @@
+{
+  "name": "good-auto-meets",
+  "version": "0.2.2",
+  "description": "Agent-operated local capture and reports for scheduled online lectures and meetings.",
+  "author": {
+    "name": "Andrey-Good",
+    "url": "https://github.com/Andrey-Good"
+  },
+  "homepage": "https://github.com/Andrey-Good/G0oD_auto_meets",
+  "repository": "https://github.com/Andrey-Good/G0oD_auto_meets",
+  "license": "MIT",
+  "keywords": ["meetings", "lectures", "recording", "transcription"]
+}

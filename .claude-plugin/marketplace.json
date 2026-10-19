@@ -1,0 +1,19 @@
+{
+  "name": "good-auto-meets",
+  "owner": {
+    "name": "Andrey-Good",
+    "url": "https://github.com/Andrey-Good"
+  },
+  "metadata": {
+    "description": "Agent-operated local capture and reports for scheduled online lectures and meetings."
+  },
+  "plugins": [
+    {
+      "name": "good-auto-meets",
+      "source": "./plugins/good-auto-meets",
+      "description": "Record lectures and meetings locally with an agent.",
+      "version": "0.2.2",
+      "category": "productivity"
+    }
+  ]
+}
